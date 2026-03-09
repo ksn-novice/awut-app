@@ -316,29 +316,33 @@
         };
 
         function restoreSession() {
-            var sessionStr = localStorage.getItem('noviceAppSession');
-            var lastPage = localStorage.getItem('noviceAppLastPage');
-            if(sessionStr) {
-                var session = JSON.parse(sessionStr);
-                if(session.announcement && session.announcement.trim() !== "") {
-                    document.getElementById('userAnnounceBox').style.display = 'block'; document.getElementById('userAnnounceText').innerText = session.announcement;
-                    document.getElementById('adminAnnounceBox').style.display = 'block'; document.getElementById('adminAnnounceText').innerText = session.announcement;
+            try {
+                var sessionStr = localStorage.getItem('noviceAppSession');
+                var lastPage = localStorage.getItem('noviceAppLastPage');
+                if(sessionStr) {
+                    var session = JSON.parse(sessionStr);
+                    if(session.announcement && session.announcement.trim() !== "") {
+                        document.getElementById('userAnnounceBox').style.display = 'block'; document.getElementById('userAnnounceText').innerText = session.announcement;
+                        document.getElementById('adminAnnounceBox').style.display = 'block'; document.getElementById('adminAnnounceText').innerText = session.announcement;
+                    }
+                    if(session.role === 'admin') {
+                        if(lastPage === 'page-admin-table') loadAdminData();
+                        else if(lastPage === 'page-admin-leave') loadAdminLeaves();
+                        else if(lastPage === 'page-admin-chanting') loadChantingPage();
+                        else switchPage('page-menu');
+                    } else if(session.role === 'user') {
+                        currentLoggedUser = session.user; currentUserData = session.data;
+                        document.getElementById('profileBackBtn').innerText = "ออกจากระบบ"; document.getElementById('profileBackBtn').onclick = logout;
+                        document.getElementById('btnChangePass').style.display = "block"; document.getElementById('btnEditProfile').style.display = "block";
+                        document.getElementById('btnLeaveRequest').style.display = "block"; document.getElementById('userLeaveHistorySection').style.display = "block";
+                        fillProfileData(currentUserData);
+                        if(lastPage === 'page-leave-form') switchPage('page-leave-form');
+                        else if(lastPage === 'page-edit-profile') openEditProfile();
+                        else { loadUserLeaveHistory(currentLoggedUser); switchPage('page-profile'); }
+                    }
                 }
-                if(session.role === 'admin') {
-                    if(lastPage === 'page-admin-table') loadAdminData();
-                    else if(lastPage === 'page-admin-leave') loadAdminLeaves();
-                    else if(lastPage === 'page-admin-chanting') loadChantingPage();
-                    else switchPage('page-menu');
-                } else if(session.role === 'user') {
-                    currentLoggedUser = session.user; currentUserData = session.data;
-                    document.getElementById('profileBackBtn').innerText = "ออกจากระบบ"; document.getElementById('profileBackBtn').onclick = logout;
-                    document.getElementById('btnChangePass').style.display = "block"; document.getElementById('btnEditProfile').style.display = "block";
-                    document.getElementById('btnLeaveRequest').style.display = "block"; document.getElementById('userLeaveHistorySection').style.display = "block";
-                    fillProfileData(currentUserData);
-                    if(lastPage === 'page-leave-form') switchPage('page-leave-form');
-                    else if(lastPage === 'page-edit-profile') openEditProfile();
-                    else { loadUserLeaveHistory(currentLoggedUser); switchPage('page-profile'); }
-                }
+            } catch(e) {
+                logout();
             }
         }
 
@@ -385,6 +389,7 @@
             toggleDocBtn('btnHouse', data.houseUrl, "ทะเบียนบ้าน", "#17a2b8"); toggleDocBtn('btnSuthi', data.suthiUrl, "หนังสือสุทธิ", "#6f42c1"); toggleDocBtn('btnIdCard', data.idCardUrl, "บัตรประชาชน", "#e83e8c"); toggleDocBtn('btnEdu', data.eduUrl, "วุฒิการศึกษา", "#fd7e14"); toggleDocBtn('btnMed', data.medUrl, "ใบรับรองแพทย์", "#28a745");
         }
 
+        // 🟢 เพิ่มปุ่มดูเอกสารแนบในประวัติการลาของสามเณร 🟢
         async function loadUserLeaveHistory(userName) {
             var box = document.getElementById('userLeaveHistoryBox');
             var data = await callApi('getUserLeaves', { name: userName });
@@ -392,7 +397,18 @@
             var html = ""; var recentData = data.slice(0, 5);
             recentData.forEach(function(item) {
                 var stColor = item.status === "อนุมัติ" ? "green" : (item.status === "ไม่อนุมัติ" ? "red" : "orange");
-                html += `<div class="leave-item"><div style="display:flex; justify-content:space-between; align-items:center;"><b>${item.type}</b><span style="color:${stColor}; font-weight:bold;">${item.status}</span></div><div style="color:#555; margin-top:5px; font-size:13px;">วันที่: ${item.start} - ${item.end}</div><div style="color:#888; margin-top:2px; font-size:12px;">เหตุผล: ${item.reason}</div></div>`;
+                
+                // ปุ่มเอกสารแนบของแต่ละรายการ
+                var proofBtn = item.proof ? `<button onclick="window.open('${item.proof}', '_blank')" style="margin-top:8px; padding:4px 10px; font-size:11px; background-color:#17a2b8; color:white; border:none; border-radius:4px; cursor:pointer;">📎 ดูเอกสารแนบ</button>` : `<span style="font-size:11px; color:#999; display:block; margin-top:8px;">(ไม่มีเอกสารแนบ)</span>`;
+                
+                html += `<div class="leave-item">
+                            <div style="display:flex; justify-content:space-between; align-items:center;">
+                                <b>${item.type}</b><span style="color:${stColor}; font-weight:bold;">${item.status}</span>
+                            </div>
+                            <div style="color:#555; margin-top:5px; font-size:13px;">วันที่: ${item.start} - ${item.end}</div>
+                            <div style="color:#888; margin-top:2px; font-size:12px;">เหตุผล: ${item.reason}</div>
+                            ${proofBtn}
+                        </div>`;
             });
             if(data.length > 5) html += `<div style="text-align:center; font-size:12px; color:#999; margin-top:15px; padding-top:10px; border-top:1px dashed #eee;">แสดงการลา 5 รายการล่าสุด (จากทั้งหมด ${data.length} รายการ)</div>`;
             box.innerHTML = html;
@@ -421,7 +437,6 @@
             } else { Swal.fire({ icon: 'error', title: 'ล้มเหลว', text: 'ชื่อหรือรหัสผ่านไม่ถูกต้อง' }); }
         }
 
-        // ======================= 🟢 ระบบจัดการการลา (อัปเดตใส่ลำดับ, อายุ, ประโยค) 🟢 =======================
         async function loadAdminLeaves() {
             switchPage('page-admin-leave'); 
             switchLeaveTab('manage');
@@ -429,7 +444,6 @@
             document.getElementById('searchLeave').value = "";
             document.getElementById('leaveTableBodyAdmin').innerHTML = "<tr><td style='padding: 20px; text-align:center;'>กำลังโหลดข้อมูล...</td></tr>";
             
-            // 🟢 โหลดข้อมูลเณรทั้งหมดมาเก็บไว้ก่อน เพื่อใช้อ้างอิงอายุและชั้นประโยค
             var novices = await callApi('getNovices');
             if(novices && novices.status !== 'error') { allNovicesData = novices; }
 
@@ -506,7 +520,6 @@
             for (var name in groupedLeaves) {
                 var groupId = 'leaveGroup_' + groupIndex;
                 
-                // 🟢 ดึงข้อมูลอายุและประโยคจาก allNovicesData
                 var noviceDetails = allNovicesData.find(d => d.name === name);
                 var ageStr = noviceDetails ? noviceDetails.age : "-";
                 var paliStr = noviceDetails ? noviceDetails.pali : "-";
@@ -520,7 +533,6 @@
                 var trHeader = document.createElement('tr');
                 trHeader.style.backgroundColor = pendingCount > 0 ? "#fff0f0" : "#f9f0ff";
                 trHeader.style.cursor = "pointer";
-                // 🟢 ใส่ลำดับเลข, ชื่อ, อายุ, ชั้นประโยค
                 trHeader.innerHTML = `
                     <td onclick="toggleLeaveGroup('${groupId}')" style="text-align:left; padding: 12px 15px; border: 1px solid #ddd; border-bottom: 2px solid ${pendingCount > 0 ? '#e74c3c' : '#8e44ad'};">
                         <div style="display:flex; justify-content: space-between; align-items: center;">
@@ -577,6 +589,7 @@
             }
         }
 
+        // 🟢 ฟังก์ชันวาดตารางสถิติการลา (จัดเรียง ก-ฮ และมีเลขลำดับ) 🟢
         function renderLeaveSummary() {
             var selectedMonth = document.getElementById('summaryLeaveMonthSelect').value;
             var searchName = document.getElementById('searchLeaveSummaryName').value.toUpperCase();
@@ -596,20 +609,22 @@
                 else if(r.type === "ลาป่วย") summaryMap[r.name].ลาป่วย += 1;
             });
 
+            // 🟢 จัดเรียงรายชื่อตามตัวอักษรภาษาไทย
             var names = Object.keys(summaryMap).filter(n => n.toUpperCase().includes(searchName));
-            names.sort();
+            names.sort((a, b) => a.localeCompare(b, 'th'));
 
             if(names.length === 0) { 
                 tbody.innerHTML = "<tr><td colspan='4' style='padding: 20px; text-align:center; color:#999;'>ไม่มีสถิติการลาที่อนุมัติแล้ว</td></tr>"; 
                 return; 
             }
 
-            names.forEach(name => {
+            // 🟢 ใส่เลขลำดับ (index + 1)
+            names.forEach((name, index) => {
                 var stat = summaryMap[name];
                 var personTotal = stat.ลากิจ + stat.ลาป่วย; 
 
                 var tr = document.createElement('tr');
-                tr.innerHTML = `<td style="text-align:left;"><b>${name}</b></td>
+                tr.innerHTML = `<td style="text-align:left;"><b>${index + 1}. ${name}</b></td>
                                 <td style="text-align:center; color:#f39c12; font-weight:bold;">${stat.ลากิจ}</td>
                                 <td style="text-align:center; color:#e74c3c; font-weight:bold;">${stat.ลาป่วย}</td>
                                 <td style="text-align:center; color:#8e44ad; font-weight:bold; background-color:#f9f0ff;">${personTotal}</td>`;
@@ -645,7 +660,6 @@
             if(res && res.status === 'success') { Swal.fire('สำเร็จ', res.message, 'success').then(() => { document.getElementById('leaveForm').reset(); loadUserLeaveHistory(currentLoggedUser); switchPage('page-profile'); }); } else { Swal.fire('ผิดพลาด', 'ระบบขัดข้อง', 'error'); }
         }
 
-        // ======================= ระบบเช็คชื่อทำวัตร =======================
         async function loadChantingPage() {
             switchPage('page-admin-chanting');
             switchChantingTab('record');
@@ -752,6 +766,7 @@
             renderChantingSummary();
         }
 
+        // 🟢 ฟังก์ชันวาดตารางสถิติทำวัตร (จัดเรียง ก-ฮ และมีเลขลำดับ) 🟢
         function renderChantingSummary() {
             var selectedMonth = document.getElementById('summaryMonthSelect').value;
             var searchName = document.getElementById('searchSummaryName').value.toUpperCase();
@@ -780,17 +795,19 @@
                 }
             });
 
+            // 🟢 จัดเรียงรายชื่อตามตัวอักษรภาษาไทย
             var names = Object.keys(summaryMap).filter(n => n.toUpperCase().includes(searchName));
-            names.sort();
+            names.sort((a, b) => a.localeCompare(b, 'th'));
 
             if(names.length === 0) { tbody.innerHTML = "<tr><td colspan='5' style='padding: 20px; text-align:center; color:#999;'>ไม่พบข้อมูล</td></tr>"; return; }
 
-            names.forEach(name => {
+            // 🟢 ใส่เลขลำดับ (index + 1)
+            names.forEach((name, index) => {
                 var stat = summaryMap[name];
                 var personTotal = stat.มา + stat.ขาด + stat.ลา; 
 
                 var tr = document.createElement('tr');
-                tr.innerHTML = `<td style="text-align:left;"><b>${name}</b></td>
+                tr.innerHTML = `<td style="text-align:left;"><b>${index + 1}. ${name}</b></td>
                                 <td style="text-align:center; color:#2ecc71; font-weight:bold;">${stat.มา}</td>
                                 <td style="text-align:center; color:#e74c3c; font-weight:bold;">${stat.ขาด}</td>
                                 <td style="text-align:center; color:#f39c12; font-weight:bold;">${stat.ลา}</td>
@@ -815,7 +832,6 @@
             var link = document.createElement("a"); link.href = URL.createObjectURL(new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })); link.download = `สถิติทำวัตร_${selectedMonth}.csv`; link.click();
         }
 
-        // ======================= ระบบแสดงข้อมูลแอดมินอื่นๆ =======================
         async function loadAdminData() { 
             switchPage('page-admin-table'); document.getElementById('tableBody').innerHTML = "<tr><td colspan='3' style='padding: 20px; text-align:center;'>กำลังโหลดข้อมูล...</td></tr>"; 
             var data = await callApi('getNovices');
