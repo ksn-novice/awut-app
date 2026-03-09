@@ -182,7 +182,9 @@
                     </select>
                 </div>
                 <div class="table-container">
-                    <table id="leaveTableAdmin"><thead><tr><th>ข้อมูลการลา</th><th style="width: 35%;">สถานะ</th></tr></thead><tbody id="leaveTableBodyAdmin"></tbody></table>
+                    <table id="leaveTableAdmin" style="border: none;">
+                        <tbody id="leaveTableBodyAdmin"></tbody>
+                    </table>
                 </div>
             </div>
 
@@ -419,23 +421,22 @@
             } else { Swal.fire({ icon: 'error', title: 'ล้มเหลว', text: 'ชื่อหรือรหัสผ่านไม่ถูกต้อง' }); }
         }
 
-        // ======================= 🟢 ระบบจัดการการลา (ปรับใหม่) 🟢 =======================
+        // ======================= 🟢 ระบบจัดการการลา (จัดกลุ่มตามชื่อ) 🟢 =======================
         async function loadAdminLeaves() {
             switchPage('page-admin-leave'); 
             switchLeaveTab('manage'); // เปิดมาแท็บแรกเสมอ
             document.getElementById('filterLeaveStatus').value = "รออนุมัติ"; 
             document.getElementById('searchLeave').value = "";
-            document.getElementById('leaveTableBodyAdmin').innerHTML = "<tr><td colspan='2' style='padding: 20px; text-align:center;'>กำลังโหลดข้อมูล...</td></tr>";
+            document.getElementById('leaveTableBodyAdmin').innerHTML = "<tr><td style='padding: 20px; text-align:center;'>กำลังโหลดข้อมูล...</td></tr>";
             
             var data = await callApi('getLeaves');
             if(data && data.status !== 'error') { 
                 allLeavesData = data; 
                 filterAdminLeaves(); 
                 
-                // เตรียม Dropdown เดือน สำหรับหน้าสรุปสถิติการลา
                 var monthsSet = new Set();
                 allLeavesData.forEach(r => {
-                    if(r.start && r.status === "อนุมัติ") { // นับเดือนเฉพาะที่มีคนลาผ่าน
+                    if(r.start && r.status === "อนุมัติ") { 
                         var parts = r.start.split(' ');
                         if(parts.length >= 3) { monthsSet.add(parts[1] + ' ' + parts[2]); }
                     }
@@ -443,14 +444,13 @@
                 var monthSelect = document.getElementById('summaryLeaveMonthSelect');
                 monthSelect.innerHTML = '<option value="all">รวมทุกเดือน</option>';
                 Array.from(monthsSet).forEach(m => { monthSelect.innerHTML += `<option value="${m}">${m}</option>`; });
-                if(monthsSet.size > 0) monthSelect.value = Array.from(monthsSet).pop(); // เลือกเดือนล่าสุดอัตโนมัติ
+                if(monthsSet.size > 0) monthSelect.value = Array.from(monthsSet).pop(); 
 
             } else { 
-                document.getElementById('leaveTableBodyAdmin').innerHTML = "<tr><td colspan='2' style='padding: 20px; text-align:center;'>เกิดข้อผิดพลาดในการโหลดข้อมูล</td></tr>"; 
+                document.getElementById('leaveTableBodyAdmin').innerHTML = "<tr><td style='padding: 20px; text-align:center;'>เกิดข้อผิดพลาดในการโหลดข้อมูล</td></tr>"; 
             }
         }
 
-        // ฟังก์ชันสลับแท็บหน้าการลา
         function switchLeaveTab(tabMode) {
             if(tabMode === 'manage') {
                 document.getElementById('leaveManageSection').style.display = 'block';
@@ -462,15 +462,75 @@
                 document.getElementById('leaveSummarySection').style.display = 'block';
                 document.getElementById('btnTabLeaveManage').style.backgroundColor = '#6c757d';
                 document.getElementById('btnTabLeaveSummary').style.backgroundColor = '#8e44ad';
-                renderLeaveSummary(); // วาดตารางสถิติใหม่ทุกครั้งที่กดแท็บ
+                renderLeaveSummary(); 
             }
         }
 
+        // 🟢 ฟังก์ชันคัดกรอง และจัดกลุ่มใบลาตามชื่อ
         function filterAdminLeaves() {
-            var searchTxt = document.getElementById('searchLeave').value.toUpperCase(); var statusFilter = document.getElementById('filterLeaveStatus').value; var tbody = document.getElementById('leaveTableBodyAdmin'); tbody.innerHTML = "";
-            var filteredLeaves = allLeavesData.filter(function(row) { var matchName = row.name.toUpperCase().indexOf(searchTxt) > -1 || row.reason.toUpperCase().indexOf(searchTxt) > -1; var matchStatus = (statusFilter === "all") ? true : (row.status === statusFilter); return matchName && matchStatus; });
-            if(filteredLeaves.length === 0) { tbody.innerHTML = "<tr><td colspan='2' style='padding: 20px; text-align:center; color:#999;'>ไม่พบข้อมูลที่ค้นหา</td></tr>"; return; }
-            filteredLeaves.forEach(function(row) { var statusColor = row.status === "อนุมัติ" ? "green" : (row.status === "ไม่อนุมัติ" ? "red" : "orange"); var proofBtn = row.proof ? `<button onclick="window.open('${row.proof}', '_blank')" style="margin-top:5px; padding:3px 8px; font-size:11px; background:#17a2b8; color:white; border:none; border-radius:3px; cursor:pointer;">เปิดเอกสารแนบ</button>` : `<span style="font-size:11px; color:#999;">(ไม่มีเอกสารแนบ)</span>`; var tr = document.createElement('tr'); tr.innerHTML = `<td style="text-align:left;"><b style="color:#8e44ad;">${row.name}</b> (${row.type})<br><span style="font-size:13px; color:#555;"><b>วันที่:</b> <span style="color:#d35400;">${row.start} - ${row.end}</span><br><b>เหตุผล:</b> ${row.reason}</span><br>${proofBtn}</td><td style="text-align:center;"><select onchange="changeLeaveStatus(${row.row}, this.value)" style="padding: 5px; font-size: 13px; color: ${statusColor}; font-weight: bold; width: 100%;"><option value="รออนุมัติ" ${row.status==='รออนุมัติ'?'selected':''}>รออนุมัติ</option><option value="อนุมัติ" ${row.status==='อนุมัติ'?'selected':''}>อนุมัติ</option><option value="ไม่อนุมัติ" ${row.status==='ไม่อนุมัติ'?'selected':''}>ไม่อนุมัติ</option></select></td>`; tbody.appendChild(tr); });
+            var searchTxt = document.getElementById('searchLeave').value.toUpperCase(); 
+            var statusFilter = document.getElementById('filterLeaveStatus').value; 
+            var tbody = document.getElementById('leaveTableBodyAdmin'); 
+            tbody.innerHTML = "";
+
+            // กรองข้อมูลตามที่ค้นหา
+            var filteredLeaves = allLeavesData.filter(function(row) { 
+                var matchName = row.name.toUpperCase().indexOf(searchTxt) > -1 || row.reason.toUpperCase().indexOf(searchTxt) > -1; 
+                var matchStatus = (statusFilter === "all") ? true : (row.status === statusFilter); 
+                return matchName && matchStatus; 
+            });
+
+            if(filteredLeaves.length === 0) { 
+                tbody.innerHTML = "<tr><td style='padding: 20px; text-align:center; color:#999; border: 1px solid #ddd;'>ไม่พบข้อมูลที่ค้นหา</td></tr>"; 
+                return; 
+            }
+
+            // จัดกลุ่มตามชื่อเณร
+            var groupedLeaves = {};
+            filteredLeaves.forEach(function(row) {
+                if (!groupedLeaves[row.name]) groupedLeaves[row.name] = [];
+                groupedLeaves[row.name].push(row);
+            });
+
+            // วาดตารางตามกลุ่มชื่อ
+            for (var name in groupedLeaves) {
+                // สร้างแถวหัวข้อ (ชื่อสามเณร)
+                var trHeader = document.createElement('tr');
+                trHeader.style.backgroundColor = "#f9f0ff";
+                trHeader.innerHTML = `<td style="text-align:left; padding: 10px; border: 1px solid #ddd; border-bottom: 2px solid #8e44ad;">
+                                        <b style="color:#8e44ad; font-size: 15px;">👤 ${name}</b> 
+                                        <span style="font-size:12px; color:#666;">(${groupedLeaves[name].length} รายการ)</span>
+                                      </td>`;
+                tbody.appendChild(trHeader);
+
+                // สร้างแถวรายละเอียดคำร้องย่อยๆ ของแต่ละคน
+                groupedLeaves[name].forEach(function(row) {
+                    var statusColor = row.status === "อนุมัติ" ? "green" : (row.status === "ไม่อนุมัติ" ? "red" : "orange"); 
+                    var proofBtn = row.proof ? `<button onclick="window.open('${row.proof}', '_blank')" style="margin-top:5px; padding:3px 8px; font-size:11px; background:#17a2b8; color:white; border:none; border-radius:3px; cursor:pointer;">เปิดเอกสารแนบ</button>` : `<span style="font-size:11px; color:#999;">(ไม่มีเอกสารแนบ)</span>`; 
+                    
+                    var tr = document.createElement('tr'); 
+                    tr.innerHTML = `
+                        <td style="border: 1px solid #ddd; padding: 0;">
+                            <div style="display: flex; justify-content: space-between; padding: 10px 15px; border-left: 3px solid #8e44ad; align-items: center;">
+                                <div style="text-align:left; width: 65%;">
+                                    <b style="color:#333;">${row.type}</b><br>
+                                    <span style="font-size:13px; color:#555;">
+                                        <b>วันที่:</b> <span style="color:#d35400;">${row.start} - ${row.end}</span><br>
+                                        <b>เหตุผล:</b> ${row.reason}
+                                    </span><br>${proofBtn}
+                                </div>
+                                <div style="text-align:right; width: 35%;">
+                                    <select onchange="changeLeaveStatus(${row.row}, this.value)" style="padding: 5px; font-size: 13px; color: ${statusColor}; font-weight: bold; width: 100%;">
+                                        <option value="รออนุมัติ" ${row.status==='รออนุมัติ'?'selected':''}>รออนุมัติ</option>
+                                        <option value="อนุมัติ" ${row.status==='อนุมัติ'?'selected':''}>อนุมัติ</option>
+                                        <option value="ไม่อนุมัติ" ${row.status==='ไม่อนุมัติ'?'selected':''}>ไม่อนุมัติ</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </td>`; 
+                    tbody.appendChild(tr); 
+                });
+            }
         }
 
         async function changeLeaveStatus(rowIndex, newStatus) { 
@@ -479,18 +539,17 @@
             Swal.close();
             if(res && res.status === 'success') { 
                 var item = allLeavesData.find(d => d.row === rowIndex); 
-                if (item) item.status = newStatus; // อัปเดตข้อมูลในเครื่องด้วย
+                if (item) item.status = newStatus; 
                 filterAdminLeaves(); 
             }
         }
 
-        // 🟢 ฟังก์ชันวาดตารางสถิติการลา (แยกกิจ-ป่วย)
+        // 🟢 ฟังก์ชันวาดตารางสถิติการลา
         function renderLeaveSummary() {
             var selectedMonth = document.getElementById('summaryLeaveMonthSelect').value;
             var searchName = document.getElementById('searchLeaveSummaryName').value.toUpperCase();
             var tbody = document.getElementById('leaveSummaryBody'); tbody.innerHTML = "";
 
-            // กรองเฉพาะการลาที่ "อนุมัติ" แล้ว และตรงกับเดือนที่เลือก
             var filteredData = allLeavesData.filter(r => {
                 if(r.status !== "อนุมัติ") return false; 
                 var parts = r.start.split(' ');
@@ -526,7 +585,6 @@
             });
         }
 
-        // 🟢 ฟังก์ชันส่งออก Excel สถิติการลา
         function exportLeaveSummaryCSV() {
             var selectedMonth = document.getElementById('summaryLeaveMonthSelect').value;
             var tbody = document.getElementById('leaveSummaryBody');
