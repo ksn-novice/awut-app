@@ -421,10 +421,10 @@
             } else { Swal.fire({ icon: 'error', title: 'ล้มเหลว', text: 'ชื่อหรือรหัสผ่านไม่ถูกต้อง' }); }
         }
 
-        // ======================= 🟢 ระบบจัดการการลา (จัดกลุ่มตามชื่อ) 🟢 =======================
+        // ======================= 🟢 ระบบจัดการการลา (Accordion / กางหุบได้) 🟢 =======================
         async function loadAdminLeaves() {
             switchPage('page-admin-leave'); 
-            switchLeaveTab('manage'); // เปิดมาแท็บแรกเสมอ
+            switchLeaveTab('manage');
             document.getElementById('filterLeaveStatus').value = "รออนุมัติ"; 
             document.getElementById('searchLeave').value = "";
             document.getElementById('leaveTableBodyAdmin').innerHTML = "<tr><td style='padding: 20px; text-align:center;'>กำลังโหลดข้อมูล...</td></tr>";
@@ -445,7 +445,6 @@
                 monthSelect.innerHTML = '<option value="all">รวมทุกเดือน</option>';
                 Array.from(monthsSet).forEach(m => { monthSelect.innerHTML += `<option value="${m}">${m}</option>`; });
                 if(monthsSet.size > 0) monthSelect.value = Array.from(monthsSet).pop(); 
-
             } else { 
                 document.getElementById('leaveTableBodyAdmin').innerHTML = "<tr><td style='padding: 20px; text-align:center;'>เกิดข้อผิดพลาดในการโหลดข้อมูล</td></tr>"; 
             }
@@ -466,14 +465,24 @@
             }
         }
 
-        // 🟢 ฟังก์ชันคัดกรอง และจัดกลุ่มใบลาตามชื่อ
+        // 🟢 ฟังก์ชันพับกางข้อมูล (Accordion)
+        function toggleLeaveGroup(groupId) {
+            var elements = document.querySelectorAll('.' + groupId);
+            var icon = document.getElementById('icon_' + groupId);
+            if (elements.length > 0) {
+                var isHidden = elements[0].style.display === 'none';
+                elements.forEach(el => el.style.display = isHidden ? 'table-row' : 'none');
+                icon.innerText = isHidden ? '🔽' : '▶️';
+            }
+        }
+
+        // 🟢 กรองข้อมูลและจัดกลุ่มแบบพับกางได้
         function filterAdminLeaves() {
             var searchTxt = document.getElementById('searchLeave').value.toUpperCase(); 
             var statusFilter = document.getElementById('filterLeaveStatus').value; 
             var tbody = document.getElementById('leaveTableBodyAdmin'); 
             tbody.innerHTML = "";
 
-            // กรองข้อมูลตามที่ค้นหา
             var filteredLeaves = allLeavesData.filter(function(row) { 
                 var matchName = row.name.toUpperCase().indexOf(searchTxt) > -1 || row.reason.toUpperCase().indexOf(searchTxt) > -1; 
                 var matchStatus = (statusFilter === "all") ? true : (row.status === statusFilter); 
@@ -485,33 +494,51 @@
                 return; 
             }
 
-            // จัดกลุ่มตามชื่อเณร
             var groupedLeaves = {};
             filteredLeaves.forEach(function(row) {
                 if (!groupedLeaves[row.name]) groupedLeaves[row.name] = [];
                 groupedLeaves[row.name].push(row);
             });
 
-            // วาดตารางตามกลุ่มชื่อ
+            var groupIndex = 0;
             for (var name in groupedLeaves) {
-                // สร้างแถวหัวข้อ (ชื่อสามเณร)
+                var groupId = 'leaveGroup_' + groupIndex;
+                
+                // เช็คว่าคนนี้มีรายการ "รออนุมัติ" หรือเปล่า (เพื่อกางรออัตโนมัติ)
+                var pendingCount = groupedLeaves[name].filter(r => r.status === "รออนุมัติ").length;
+                var badgeHtml = pendingCount > 0 ? `<span style="background-color: #e74c3c; color: white; border-radius: 12px; padding: 2px 8px; font-size: 11px; margin-left: 8px;">รอ ${pendingCount}</span>` : '';
+                var isExpanded = pendingCount > 0 || statusFilter === "รออนุมัติ"; // กางอัตโนมัติถ้ารออนุมัติ
+                var iconText = isExpanded ? '🔽' : '▶️';
+                var displayStyle = isExpanded ? 'table-row' : 'none';
+
+                // 🟢 แถวหัวข้อ (คลิกได้)
                 var trHeader = document.createElement('tr');
-                trHeader.style.backgroundColor = "#f9f0ff";
-                trHeader.innerHTML = `<td style="text-align:left; padding: 10px; border: 1px solid #ddd; border-bottom: 2px solid #8e44ad;">
-                                        <b style="color:#8e44ad; font-size: 15px;">👤 ${name}</b> 
-                                        <span style="font-size:12px; color:#666;">(${groupedLeaves[name].length} รายการ)</span>
-                                      </td>`;
+                trHeader.style.backgroundColor = pendingCount > 0 ? "#fff0f0" : "#f9f0ff";
+                trHeader.style.cursor = "pointer";
+                trHeader.innerHTML = `
+                    <td onclick="toggleLeaveGroup('${groupId}')" style="text-align:left; padding: 12px 15px; border: 1px solid #ddd; border-bottom: 2px solid ${pendingCount > 0 ? '#e74c3c' : '#8e44ad'};">
+                        <div style="display:flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <b style="color:${pendingCount > 0 ? '#e74c3c' : '#8e44ad'}; font-size: 15px;">👤 ${name}</b> 
+                                <span style="font-size:12px; color:#666; margin-left: 5px;">(${groupedLeaves[name].length} รายการ)</span>
+                                ${badgeHtml}
+                            </div>
+                            <div id="icon_${groupId}" style="font-size: 12px; color: #888;">${iconText}</div>
+                        </div>
+                    </td>`;
                 tbody.appendChild(trHeader);
 
-                // สร้างแถวรายละเอียดคำร้องย่อยๆ ของแต่ละคน
+                // 🟢 แถวรายละเอียด (ซ่อน/แสดง ตามเงื่อนไข)
                 groupedLeaves[name].forEach(function(row) {
                     var statusColor = row.status === "อนุมัติ" ? "green" : (row.status === "ไม่อนุมัติ" ? "red" : "orange"); 
                     var proofBtn = row.proof ? `<button onclick="window.open('${row.proof}', '_blank')" style="margin-top:5px; padding:3px 8px; font-size:11px; background:#17a2b8; color:white; border:none; border-radius:3px; cursor:pointer;">เปิดเอกสารแนบ</button>` : `<span style="font-size:11px; color:#999;">(ไม่มีเอกสารแนบ)</span>`; 
                     
                     var tr = document.createElement('tr'); 
+                    tr.className = groupId; // กำหนดคลาสให้กลุ่มนี้
+                    tr.style.display = displayStyle; // ซ่อนหรือกางตามเงื่อนไขเริ่มต้น
                     tr.innerHTML = `
-                        <td style="border: 1px solid #ddd; padding: 0;">
-                            <div style="display: flex; justify-content: space-between; padding: 10px 15px; border-left: 3px solid #8e44ad; align-items: center;">
+                        <td style="border: 1px solid #ddd; padding: 0; background-color: #fff;">
+                            <div style="display: flex; justify-content: space-between; padding: 10px 15px; border-left: 3px solid ${row.status === "รออนุมัติ" ? "#e74c3c" : "#8e44ad"}; align-items: center;">
                                 <div style="text-align:left; width: 65%;">
                                     <b style="color:#333;">${row.type}</b><br>
                                     <span style="font-size:13px; color:#555;">
@@ -530,6 +557,7 @@
                         </td>`; 
                     tbody.appendChild(tr); 
                 });
+                groupIndex++;
             }
         }
 
@@ -540,7 +568,7 @@
             if(res && res.status === 'success') { 
                 var item = allLeavesData.find(d => d.row === rowIndex); 
                 if (item) item.status = newStatus; 
-                filterAdminLeaves(); 
+                filterAdminLeaves(); // รีเฟรชหน้าจอ
             }
         }
 
@@ -613,7 +641,7 @@
             if(res && res.status === 'success') { Swal.fire('สำเร็จ', res.message, 'success').then(() => { document.getElementById('leaveForm').reset(); loadUserLeaveHistory(currentLoggedUser); switchPage('page-profile'); }); } else { Swal.fire('ผิดพลาด', 'ระบบขัดข้อง', 'error'); }
         }
 
-        // ======================= 🟢 ระบบเช็คชื่อทำวัตร 🟢 =======================
+        // ======================= ระบบเช็คชื่อทำวัตร =======================
         async function loadChantingPage() {
             switchPage('page-admin-chanting');
             switchChantingTab('record');
