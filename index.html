@@ -71,7 +71,7 @@
         .controls-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
         .pagination { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; font-size: 14px; }
         .btn-page { padding: 5px 15px; background-color: #eee; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; font-family: 'Sarabun';}
-        .chant-select { padding: 8px; border-radius: 5px; font-weight: bold; width: 100%; border: 1px solid #ccc; outline: none;}
+        .chant-select { padding: 8px; border-radius: 5px; font-weight: bold; width: 100%; border: 1px solid #ccc; outline: none; font-family: 'Sarabun';}
         .chant-select:focus { border-color: #d35400; }
 
         #installAppPrompt { background-color: #fcf3e8; border: 2px dashed #d35400; padding: 15px; border-radius: 10px; text-align: center; margin-bottom: 20px; }
@@ -130,9 +130,16 @@
             <div class="divider" style="margin-top:0;"></div>
 
             <div id="chantingRecordSection">
-                <div class="controls-row">
-                    <div class="form-group" style="margin-bottom: 0;"><label>ประจำวันที่</label><input type="date" id="chantingDate"></div>
-                    <div class="form-group" style="margin-bottom: 0;"><label>รอบทำวัตร</label><select id="chantingSession"><option value="ทำวัตรเช้า">ทำวัตรเช้า</option><option value="ทำวัตรเย็น">ทำวัตรเย็น</option></select></div>
+                <div class="controls-row" style="grid-template-columns: 1fr 1fr 1.2fr; gap: 8px;">
+                    <div class="form-group" style="margin-bottom: 0;"><label>ประจำวันที่</label><input type="date" id="chantingDate" style="padding: 10px 5px;"></div>
+                    <div class="form-group" style="margin-bottom: 0;"><label>รอบ</label><select id="chantingSession" style="padding: 10px 5px;"><option value="ทำวัตรเช้า">เช้า</option><option value="ทำวัตรเย็น">เย็น</option></select></div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label style="color:#e67e22; font-weight:bold;">ประเภทวัน</label>
+                        <select id="chantingDayType" style="padding: 10px 5px; border-color:#e67e22;">
+                            <option value="1">วันธรรมดา (นับ 1)</option>
+                            <option value="2">วันพระ (นับ 2)</option>
+                        </select>
+                    </div>
                 </div>
                 <div id="chantingListContainer" style="max-height: 450px; overflow-y: auto; padding-right: 5px; margin-top:15px;"></div>
                 <button type="button" class="btn-main" style="background-color: #28a745;" onclick="submitChanting()">💾 บันทึกข้อมูลทำวัตร</button>
@@ -414,6 +421,7 @@
             if(res && res.status === 'success') { var item = allLeavesData.find(d => d.row === rowIndex); if (item) item.status = newStatus; filterAdminLeaves(); }
         }
 
+        // 🟢 ดึงข้อมูลมาแสดงในหน้าเช็คชื่อ (มีลำดับ, อายุ, ประโยค) 🟢
         async function loadChantingPage() {
             switchPage('page-admin-chanting');
             switchChantingTab('record');
@@ -424,12 +432,27 @@
             var container = document.getElementById('chantingListContainer'); 
             container.innerHTML = "<p align='center' style='color:#666;'>⏳ กำลังโหลดรายชื่อสามเณรปัจจุบัน...</p>";
             
-            var names = await callApi('getActiveNovices');
-            if(!names || names.length === 0 || names.status === 'error') { container.innerHTML = "<p align='center' style='color:red;'>ไม่พบรายชื่อสามเณรที่กำลังศึกษา</p>"; return; }
+            // ใช้ getNovices เพื่อให้ได้ข้อมูลอายุและประโยคมาด้วย
+            var data = await callApi('getNovices');
+            if(!data || data.length === 0 || data.status === 'error') { container.innerHTML = "<p align='center' style='color:red;'>ไม่พบรายชื่อในระบบ</p>"; return; }
             
-            var html = '<table style="width:100%; border-collapse: collapse;">'; 
-            names.forEach(function(n, idx) { 
-                html += `<tr style="border-bottom:1px solid #eee;"><td style="padding:12px 5px; font-size:15px; border:none; text-align:left;"><b>${n}</b></td><td style="padding:12px 5px; border:none; text-align:right;"><select id="chant_${idx}" data-name="${n}" class="chant-select"><option value="มา" style="color:green;" selected>✅ มา</option><option value="ขาด" style="color:red;">❌ ขาด</option><option value="ลา" style="color:orange;">📝 ลา</option></select></td></tr>`; 
+            var activeNovices = data.filter(d => d.status === "กำลังศึกษา");
+            if(activeNovices.length === 0) { container.innerHTML = "<p align='center' style='color:red;'>ไม่มีสามเณรที่กำลังศึกษา</p>"; return; }
+            
+            var html = '<table style="width:100%; border-collapse: collapse; font-size: 14px;">'; 
+            activeNovices.forEach(function(novice, idx) { 
+                var displayInfo = `${novice.name} <br><span style="font-size:11px; color:#666;">(อายุ ${novice.age} ปี | ${novice.pali})</span>`;
+                html += `<tr style="border-bottom:1px solid #eee;">
+                            <td style="padding:10px 0; text-align:center; width: 10%; color:#999; font-weight:bold;">${idx + 1}.</td>
+                            <td style="padding:10px 5px; text-align:left;"><b>${displayInfo}</b></td>
+                            <td style="padding:10px 0; text-align:right; width: 35%;">
+                                <select id="chant_${idx}" data-name="${novice.name}" class="chant-select">
+                                    <option value="มา" style="color:green;" selected>✅ มา</option>
+                                    <option value="ขาด" style="color:red;">❌ ขาด</option>
+                                    <option value="ลา" style="color:orange;">📝 ลา</option>
+                                </select>
+                            </td>
+                         </tr>`; 
             }); 
             html += '</table>'; 
             container.innerHTML = html;
@@ -450,10 +473,21 @@
             }
         }
 
+        // 🟢 ฟังก์ชันบันทึกข้อมูล พร้อมฝังตัวคูณคะแนน 🟢
         async function submitChanting() { 
-            var dateVal = formatThaiDateFromInput(document.getElementById('chantingDate').value); var sessionVal = document.getElementById('chantingSession').value; 
+            var dateVal = formatThaiDateFromInput(document.getElementById('chantingDate').value); 
+            var sessionVal = document.getElementById('chantingSession').value; 
+            var dayType = document.getElementById('chantingDayType').value; // เอาตัวคูณ (1 หรือ 2) มา
+
             if(!dateVal) { Swal.fire('แจ้งเตือน', 'กรุณาเลือกวันที่ก่อนครับ', 'warning'); return; } 
-            var records = []; document.querySelectorAll('[id^="chant_"]').forEach(function(sel) { records.push({ name: sel.getAttribute('data-name'), status: sel.value }); }); 
+            
+            var records = []; 
+            document.querySelectorAll('[id^="chant_"]').forEach(function(sel) { 
+                // ฝังตัวคูณไปกับข้อความ เช่น "มา|2" หรือ "ขาด|1"
+                var finalStatus = sel.value + "|" + dayType; 
+                records.push({ name: sel.getAttribute('data-name'), status: finalStatus }); 
+            }); 
+            
             if(records.length === 0) return; 
             Swal.fire({ title: 'กำลังบันทึกข้อมูลทำวัตร...', allowOutsideClick: false, didOpen:()=>{Swal.showLoading()} }); 
             
@@ -497,7 +531,7 @@
             renderChantingSummary();
         }
 
-        // 🟢 ฟังก์ชันวาดตารางสถิติ (มีช่อง "รวม" ของแต่ละคน) 🟢
+        // 🟢 ฟังก์ชันคำนวณสถิติอัจฉริยะ (แยกตัวคูณวันพระ) 🟢
         function renderChantingSummary() {
             var selectedMonth = document.getElementById('summaryMonthSelect').value;
             var searchName = document.getElementById('searchSummaryName').value.toUpperCase();
@@ -512,9 +546,15 @@
             var summaryMap = {};
             filteredData.forEach(r => {
                 if(!summaryMap[r.name]) summaryMap[r.name] = { มา: 0, ขาด: 0, ลา: 0 };
-                if(r.status === "มา") summaryMap[r.name].มา++;
-                else if(r.status === "ขาด") summaryMap[r.name].ขาด++;
-                else if(r.status === "ลา") summaryMap[r.name].ลา++;
+                
+                // แยกข้อความและตัวคูณ (เช่น "มา|2" -> ได้คำว่า "มา" กับ ตัวเลข 2)
+                var statusParts = r.status.split('|');
+                var actStatus = statusParts[0].trim();
+                var points = statusParts.length > 1 ? parseInt(statusParts[1]) : 1; // ถ้าเป็นข้อมูลเก่าในชีต ให้ถือว่ามีค่า = 1
+
+                if(actStatus === "มา") summaryMap[r.name].มา += points;
+                else if(actStatus === "ขาด") summaryMap[r.name].ขาด += points;
+                else if(actStatus === "ลา") summaryMap[r.name].ลา += points;
             });
 
             var names = Object.keys(summaryMap).filter(n => n.toUpperCase().includes(searchName));
@@ -524,8 +564,7 @@
 
             names.forEach(name => {
                 var stat = summaryMap[name];
-                // 🟢 คำนวณยอดรวมของคนๆ นั้น 🟢
-                var personTotal = stat.มา + stat.ขาด + stat.ลา;
+                var personTotal = stat.มา + stat.ขาด + stat.ลา; // รวมเฉพาะของคนนี้
 
                 var tr = document.createElement('tr');
                 tr.innerHTML = `<td style="text-align:left;"><b>${name}</b></td>
@@ -542,7 +581,6 @@
             var tbody = document.getElementById('chantingSummaryBody');
             if(tbody.innerText.includes("ไม่พบข้อมูล")) { Swal.fire('แจ้งเตือน', 'ไม่มีข้อมูลให้ดาวน์โหลด', 'warning'); return; }
             
-            // เพิ่มหัวคอลัมน์ "รวม" ในไฟล์ Excel
             var csvContent = "\uFEFFชื่อสามเณร,มา,ขาด,ลา,รวม\n";
             var rows = tbody.querySelectorAll('tr');
             rows.forEach(tr => { 
