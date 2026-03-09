@@ -156,9 +156,9 @@
                         <thead>
                             <tr>
                                 <th>ชื่อสามเณร</th>
-                                <th style="width: 14%; text-align:center; color:#2ecc71;">มา</th>
-                                <th style="width: 14%; text-align:center; color:#e74c3c;">ขาด</th>
-                                <th style="width: 14%; text-align:center; color:#f39c12;">ลา</th>
+                                <th style="width: 14%; text-align:center; color:#2ecc71;">มา<br><span style="font-size:10px; font-weight:normal;">(คะแนน)</span></th>
+                                <th style="width: 14%; text-align:center; color:#e74c3c;">ขาด<br><span style="font-size:10px; font-weight:normal;">(ครั้ง)</span></th>
+                                <th style="width: 14%; text-align:center; color:#f39c12;">ลา<br><span style="font-size:10px; font-weight:normal;">(ครั้ง)</span></th>
                                 <th style="width: 14%; text-align:center; color:#2980b9;">รวม</th>
                             </tr>
                         </thead>
@@ -421,7 +421,7 @@
             if(res && res.status === 'success') { var item = allLeavesData.find(d => d.row === rowIndex); if (item) item.status = newStatus; filterAdminLeaves(); }
         }
 
-        // 🟢 ดึงข้อมูลมาแสดงในหน้าเช็คชื่อ (มีลำดับ, อายุ, ประโยค) 🟢
+        // 🟢 ดึงข้อมูลมาแสดงในหน้าเช็คชื่อ (มีลำดับ, อายุ, ประโยค)
         async function loadChantingPage() {
             switchPage('page-admin-chanting');
             switchChantingTab('record');
@@ -432,7 +432,6 @@
             var container = document.getElementById('chantingListContainer'); 
             container.innerHTML = "<p align='center' style='color:#666;'>⏳ กำลังโหลดรายชื่อสามเณรปัจจุบัน...</p>";
             
-            // ใช้ getNovices เพื่อให้ได้ข้อมูลอายุและประโยคมาด้วย
             var data = await callApi('getNovices');
             if(!data || data.length === 0 || data.status === 'error') { container.innerHTML = "<p align='center' style='color:red;'>ไม่พบรายชื่อในระบบ</p>"; return; }
             
@@ -473,17 +472,16 @@
             }
         }
 
-        // 🟢 ฟังก์ชันบันทึกข้อมูล พร้อมฝังตัวคูณคะแนน 🟢
+        // 🟢 ฟังก์ชันบันทึกข้อมูล พร้อมฝังตัวคูณคะแนน
         async function submitChanting() { 
             var dateVal = formatThaiDateFromInput(document.getElementById('chantingDate').value); 
             var sessionVal = document.getElementById('chantingSession').value; 
-            var dayType = document.getElementById('chantingDayType').value; // เอาตัวคูณ (1 หรือ 2) มา
+            var dayType = document.getElementById('chantingDayType').value; 
 
             if(!dateVal) { Swal.fire('แจ้งเตือน', 'กรุณาเลือกวันที่ก่อนครับ', 'warning'); return; } 
             
             var records = []; 
             document.querySelectorAll('[id^="chant_"]').forEach(function(sel) { 
-                // ฝังตัวคูณไปกับข้อความ เช่น "มา|2" หรือ "ขาด|1"
                 var finalStatus = sel.value + "|" + dayType; 
                 records.push({ name: sel.getAttribute('data-name'), status: finalStatus }); 
             }); 
@@ -531,7 +529,7 @@
             renderChantingSummary();
         }
 
-        // 🟢 ฟังก์ชันคำนวณสถิติอัจฉริยะ (แยกตัวคูณวันพระ) 🟢
+        // 🟢 ฟังก์ชันคำนวณสถิติอัจฉริยะ (ขาด/ลา ไม่เอาตัวคูณมาคิด) 🟢
         function renderChantingSummary() {
             var selectedMonth = document.getElementById('summaryMonthSelect').value;
             var searchName = document.getElementById('searchSummaryName').value.toUpperCase();
@@ -547,14 +545,18 @@
             filteredData.forEach(r => {
                 if(!summaryMap[r.name]) summaryMap[r.name] = { มา: 0, ขาด: 0, ลา: 0 };
                 
-                // แยกข้อความและตัวคูณ (เช่น "มา|2" -> ได้คำว่า "มา" กับ ตัวเลข 2)
                 var statusParts = r.status.split('|');
                 var actStatus = statusParts[0].trim();
-                var points = statusParts.length > 1 ? parseInt(statusParts[1]) : 1; // ถ้าเป็นข้อมูลเก่าในชีต ให้ถือว่ามีค่า = 1
+                var points = statusParts.length > 1 ? parseInt(statusParts[1]) : 1; 
 
-                if(actStatus === "มา") summaryMap[r.name].มา += points;
-                else if(actStatus === "ขาด") summaryMap[r.name].ขาด += points;
-                else if(actStatus === "ลา") summaryMap[r.name].ลา += points;
+                // 🟢 เงื่อนไขตรงนี้เลยครับ ที่ ขาด/ลา จะนับแค่ 1 เสมอ 🟢
+                if(actStatus === "มา") {
+                    summaryMap[r.name].มา += points;
+                } else if(actStatus === "ขาด") {
+                    summaryMap[r.name].ขาด += 1; // นับเป็น 1 ครั้ง ไม่สนตัวคูณ
+                } else if(actStatus === "ลา") {
+                    summaryMap[r.name].ลา += 1;   // นับเป็น 1 ครั้ง ไม่สนตัวคูณ
+                }
             });
 
             var names = Object.keys(summaryMap).filter(n => n.toUpperCase().includes(searchName));
@@ -564,7 +566,7 @@
 
             names.forEach(name => {
                 var stat = summaryMap[name];
-                var personTotal = stat.มา + stat.ขาด + stat.ลา; // รวมเฉพาะของคนนี้
+                var personTotal = stat.มา + stat.ขาด + stat.ลา; 
 
                 var tr = document.createElement('tr');
                 tr.innerHTML = `<td style="text-align:left;"><b>${name}</b></td>
@@ -581,7 +583,7 @@
             var tbody = document.getElementById('chantingSummaryBody');
             if(tbody.innerText.includes("ไม่พบข้อมูล")) { Swal.fire('แจ้งเตือน', 'ไม่มีข้อมูลให้ดาวน์โหลด', 'warning'); return; }
             
-            var csvContent = "\uFEFFชื่อสามเณร,มา,ขาด,ลา,รวม\n";
+            var csvContent = "\uFEFFชื่อสามเณร,มา(คะแนน),ขาด(ครั้ง),ลา(ครั้ง),รวมทั้งหมด\n";
             var rows = tbody.querySelectorAll('tr');
             rows.forEach(tr => { 
                 var cols = tr.querySelectorAll('td'); 
