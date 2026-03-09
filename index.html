@@ -143,16 +143,15 @@
                     <select id="summaryMonthSelect" onchange="renderChantingSummary()"><option value="all">รวมทุกเดือน</option></select>
                     <input type="text" id="searchSummaryName" placeholder="🔍 ค้นหาชื่อ..." onkeyup="renderChantingSummary()">
                 </div>
-                <button type="button" class="btn-main" style="background-color: #17a2b8; margin-top: 0; margin-bottom: 15px; padding: 8px; font-size: 14px;" onclick="exportSummaryCSV()">📥 ดาวน์โหลดสรุป (Excel)</button>
+                <button type="button" class="btn-main" style="background-color: #17a2b8; margin-top: 0; margin-bottom: 15px; padding: 8px; font-size: 14px;" onclick="exportSummaryCSV()">📥 ดาวน์โหลดตารางสถิติ (Excel)</button>
                 <div class="table-container">
                     <table id="chantingSummaryTable">
                         <thead>
                             <tr>
                                 <th>ชื่อสามเณร</th>
-                                <th style="width: 14%; text-align:center; color:#2ecc71;">มา</th>
-                                <th style="width: 14%; text-align:center; color:#e74c3c;">ขาด</th>
-                                <th style="width: 14%; text-align:center; color:#f39c12;">ลา</th>
-                                <th style="width: 14%; text-align:center; color:#2980b9;">รวม</th>
+                                <th style="width: 18%; text-align:center; color:#2ecc71;">มา</th>
+                                <th style="width: 18%; text-align:center; color:#e74c3c;">ขาด</th>
+                                <th style="width: 18%; text-align:center; color:#f39c12;">ลา</th>
                             </tr>
                         </thead>
                         <tbody id="chantingSummaryBody"></tbody>
@@ -414,10 +413,10 @@
             if(res && res.status === 'success') { var item = allLeavesData.find(d => d.row === rowIndex); if (item) item.status = newStatus; filterAdminLeaves(); }
         }
 
-        // 🟢 ฟังก์ชันหลักสำหรับเปิดหน้าเช็คชื่อทำวัตร 🟢
+        // 🟢 ฟังก์ชันหลักสำหรับหน้าเช็คชื่อทำวัตร
         async function loadChantingPage() {
             switchPage('page-admin-chanting');
-            switchChantingTab('record'); // เปิดมาให้เข้าหน้าบันทึกก่อนเสมอ
+            switchChantingTab('record');
             
             var today = new Date(); var dd = String(today.getDate()).padStart(2, '0'); var mm = String(today.getMonth() + 1).padStart(2, '0'); var yyyy = today.getFullYear(); 
             document.getElementById('chantingDate').value = yyyy + '-' + mm + '-' + dd;
@@ -430,22 +429,13 @@
             
             var html = '<table style="width:100%; border-collapse: collapse;">'; 
             names.forEach(function(n, idx) { 
-                html += `<tr style="border-bottom:1px solid #eee;">
-                            <td style="padding:12px 5px; font-size:15px; border:none; text-align:left;"><b>${n}</b></td>
-                            <td style="padding:12px 5px; border:none; text-align:right;">
-                                <select id="chant_${idx}" data-name="${n}" class="chant-select">
-                                    <option value="มา" style="color:green;" selected>✅ มา</option>
-                                    <option value="ขาด" style="color:red;">❌ ขาด</option>
-                                    <option value="ลา" style="color:orange;">📝 ลา</option>
-                                </select>
-                            </td>
-                         </tr>`; 
+                html += `<tr style="border-bottom:1px solid #eee;"><td style="padding:12px 5px; font-size:15px; border:none; text-align:left;"><b>${n}</b></td><td style="padding:12px 5px; border:none; text-align:right;"><select id="chant_${idx}" data-name="${n}" class="chant-select"><option value="มา" style="color:green;" selected>✅ มา</option><option value="ขาด" style="color:red;">❌ ขาด</option><option value="ลา" style="color:orange;">📝 ลา</option></select></td></tr>`; 
             }); 
             html += '</table>'; 
             container.innerHTML = html;
         }
 
-        // 🟢 ฟังก์ชันสลับแท็บ บันทึก / สถิติ 🟢
+        // 🟢 ฟังก์ชันสลับแท็บ บันทึก / สถิติ
         function switchChantingTab(tabMode) {
             if(tabMode === 'record') {
                 document.getElementById('chantingRecordSection').style.display = 'block';
@@ -457,8 +447,6 @@
                 document.getElementById('chantingSummarySection').style.display = 'block';
                 document.getElementById('btnTabRecord').style.backgroundColor = '#6c757d';
                 document.getElementById('btnTabSummary').style.backgroundColor = '#2980b9';
-                
-                // โหลดข้อมูลสถิติเฉพาะตอนกดเข้ามาครั้งแรก หรือต้องการอัปเดต
                 loadChantingSummaryData(); 
             }
         }
@@ -473,21 +461,20 @@
             var res = await callApi('saveChanting', { date: dateVal, session: sessionVal, records: records });
             if(res && res.status === 'success') { 
                 Swal.fire('สำเร็จ', res.message, 'success'); 
-                // ล้างข้อมูลสถิติเดิมทิ้ง เพื่อให้โหลดใหม่รอบหน้าเผื่อมีข้อมูลอัปเดต
-                allChantingData = [];
+                allChantingData = []; // ล้างข้อมูลเผื่อกดสลับแท็บไปดูสถิติต่อ
             } else { Swal.fire('ผิดพลาด', res ? res.message : 'ระบบขัดข้อง', 'error'); } 
         }
 
-        // 🟢 โหลดข้อมูลตารางสรุป 🟢
+        // 🟢 โหลดข้อมูลตารางสถิติ
         async function loadChantingSummaryData() {
             var tbody = document.getElementById('chantingSummaryBody');
             if (allChantingData.length === 0) {
-                tbody.innerHTML = "<tr><td colspan='5' style='padding: 20px; text-align:center;'>กำลังโหลดข้อมูล...</td></tr>";
+                tbody.innerHTML = "<tr><td colspan='4' style='padding: 20px; text-align:center;'>กำลังโหลดข้อมูล...</td></tr>";
                 var data = await callApi('getChantingData');
                 if(data && data.status !== 'error') {
                     allChantingData = data;
                 } else {
-                    tbody.innerHTML = "<tr><td colspan='5' style='text-align:center; color:red;'>ไม่พบข้อมูลทำวัตร</td></tr>";
+                    tbody.innerHTML = "<tr><td colspan='4' style='text-align:center; color:red;'>ไม่พบข้อมูลทำวัตร</td></tr>";
                     return;
                 }
             }
@@ -512,7 +499,7 @@
             renderChantingSummary();
         }
 
-        // 🟢 แสดงผลตารางพร้อมช่องคำนวณและสรุปยอดรวม 🟢
+        // 🟢 วาดตารางสถิติ โดยมีแถวสรุปรวมทั้งหมดอยู่ด้านล่าง
         function renderChantingSummary() {
             var selectedMonth = document.getElementById('summaryMonthSelect').value;
             var searchName = document.getElementById('searchSummaryName').value.toUpperCase();
@@ -535,37 +522,34 @@
             var names = Object.keys(summaryMap).filter(n => n.toUpperCase().includes(searchName));
             names.sort();
 
-            if(names.length === 0) { tbody.innerHTML = "<tr><td colspan='5' style='padding: 20px; text-align:center; color:#999;'>ไม่พบข้อมูล</td></tr>"; return; }
+            if(names.length === 0) { tbody.innerHTML = "<tr><td colspan='4' style='padding: 20px; text-align:center; color:#999;'>ไม่พบข้อมูล</td></tr>"; return; }
 
-            // ตัวแปรสำหรับสรุปยอดรวมทั้งวัด
-            var grandMa = 0, grandKhad = 0, grandLa = 0, grandSum = 0;
+            // ตัวแปรนับยอดรวมของทั้งเดือน
+            var grandMa = 0, grandKhad = 0, grandLa = 0;
 
             names.forEach(name => {
                 var stat = summaryMap[name];
-                var personTotal = stat.มา + stat.ขาด + stat.ลา;
                 
+                // บวกเข้ายอดรวมใหญ่
                 grandMa += stat.มา;
                 grandKhad += stat.ขาด;
                 grandLa += stat.ลา;
-                grandSum += personTotal;
 
                 var tr = document.createElement('tr');
                 tr.innerHTML = `<td style="text-align:left;"><b>${name}</b></td>
                                 <td style="text-align:center; color:#2ecc71; font-weight:bold;">${stat.มา}</td>
                                 <td style="text-align:center; color:#e74c3c; font-weight:bold;">${stat.ขาด}</td>
-                                <td style="text-align:center; color:#f39c12; font-weight:bold;">${stat.ลา}</td>
-                                <td style="text-align:center; color:#2980b9; font-weight:bold; background-color:#f0f8ff;">${personTotal}</td>`;
+                                <td style="text-align:center; color:#f39c12; font-weight:bold;">${stat.ลา}</td>`;
                 tbody.appendChild(tr);
             });
 
-            // เพิ่มแถว "สรุปยอดรวม" ด้านล่างสุด
+            // 🟢 สร้างแถว "สรุปยอดรวมทั้งเดือน" ไว้ล่างสุด
             var trTotal = document.createElement('tr');
-            trTotal.style.backgroundColor = "#fff3cd"; // สีพื้นหลังแถวรวม
-            trTotal.innerHTML = `<td style="text-align:right; color:#d35400;"><b>รวมทั้งหมด:</b></td>
-                            <td style="text-align:center; color:#2ecc71; font-weight:bold; font-size:15px;">${grandMa}</td>
-                            <td style="text-align:center; color:#e74c3c; font-weight:bold; font-size:15px;">${grandKhad}</td>
-                            <td style="text-align:center; color:#f39c12; font-weight:bold; font-size:15px;">${grandLa}</td>
-                            <td style="text-align:center; color:#2980b9; font-weight:bold; font-size:15px;">${grandSum}</td>`;
+            trTotal.style.backgroundColor = "#fff3cd"; // สีพื้นหลังให้ดูเด่น
+            trTotal.innerHTML = `<td style="text-align:right; color:#d35400;"><b>ยอดรวมทั้งเดือน:</b></td>
+                            <td style="text-align:center; color:#2ecc71; font-weight:bold; font-size:14px;"><span style="font-size:11px; color:#555;">รวมมา</span><br>${grandMa}</td>
+                            <td style="text-align:center; color:#e74c3c; font-weight:bold; font-size:14px;"><span style="font-size:11px; color:#555;">รวมขาด</span><br>${grandKhad}</td>
+                            <td style="text-align:center; color:#f39c12; font-weight:bold; font-size:14px;"><span style="font-size:11px; color:#555;">รวมลา</span><br>${grandLa}</td>`;
             tbody.appendChild(trTotal);
         }
 
@@ -573,15 +557,20 @@
             var selectedMonth = document.getElementById('summaryMonthSelect').value;
             var tbody = document.getElementById('chantingSummaryBody');
             if(tbody.innerText.includes("ไม่พบข้อมูล")) { Swal.fire('แจ้งเตือน', 'ไม่มีข้อมูลให้ดาวน์โหลด', 'warning'); return; }
-            var csvContent = "\uFEFFชื่อสามเณร,มา,ขาด,ลา,รวม\n";
+            var csvContent = "\uFEFFชื่อสามเณร,มา,ขาด,ลา\n";
             var rows = tbody.querySelectorAll('tr');
             rows.forEach(tr => { 
                 var cols = tr.querySelectorAll('td'); 
-                if(cols.length === 5) { 
-                    csvContent += `"${cols[0].innerText}","${cols[1].innerText}","${cols[2].innerText}","${cols[3].innerText}","${cols[4].innerText}"\n`; 
+                // เช็คว่าแถวนั้นมี 4 คอลัมน์ (เพื่อไม่ให้บั๊กตอนดึงข้อมูล)
+                if(cols.length === 4) { 
+                    // กรองข้อความที่มีคำว่า "รวมมา" ออกเวลา Export ให้เหลือแต่ตัวเลข
+                    var ma = cols[1].innerText.replace("รวมมา\n", "");
+                    var khad = cols[2].innerText.replace("รวมขาด\n", "");
+                    var la = cols[3].innerText.replace("รวมลา\n", "");
+                    csvContent += `"${cols[0].innerText}","${ma}","${khad}","${la}"\n`; 
                 } 
             });
-            var link = document.createElement("a"); link.href = URL.createObjectURL(new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })); link.download = `สรุปทำวัตร_${selectedMonth}.csv`; link.click();
+            var link = document.createElement("a"); link.href = URL.createObjectURL(new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })); link.download = `สถิติทำวัตร_${selectedMonth}.csv`; link.click();
         }
 
         async function loadAdminData() { 
