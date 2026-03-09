@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ฐานข้อมูลคณะสามเณร</title>
+    <title>ฐานข้อมูลสามเณร</title>
     
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
@@ -98,7 +98,7 @@
                 <h3 style="color: #d35400; margin: 0 0 10px 0; font-size: 16px;">📲 ติดตั้งแอปลงมือถือ</h3>
                 <p style="font-size: 13px; color: #555; margin: 0; line-height: 1.5;">
                     กดที่ปุ่ม <b>แชร์ (Share)</b> หรือจุดสามจุดด้านล่าง<br>แล้วเลือก <b>"เพิ่มไปยังหน้าจอโฮม"</b><br>
-                    <span style="font-size: 11px; color: #888;">(เพื่อใช้งานแอปได้จากหน้าจอมือถือทันที)</span>
+                    <span style="font-size: 11px; color: #888;">(เพื่อเข้าใช้งานแอปได้จากหน้าจอมือถือทันที)</span>
                 </p>
             </div>
 
@@ -222,7 +222,7 @@
 
     <script>
         // -------------------------------------------------------------
-        // ลิงก์ API (ผมใส่ให้เรียบร้อยแล้ว ไม่ต้องแก้อะไรเลยครับ!)
+        // ลิงก์ API (ฝังให้เรียบร้อยแล้ว ไม่ต้องแก้ไขครับ!)
         // -------------------------------------------------------------
         const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby6uzHPSFJuPN9dvi6IUSkasIq5poX3MJBxc-x1YErAn9YmSEq3z_YbtUaWozC5_vs/exec';
 
@@ -231,7 +231,7 @@
         var currentPage = 1; var rowsPerPage = 10; 
         const paliWeights = { "ประโยค 9": 9, "ประโยค 8": 8, "ประโยค 7": 7, "ประโยค 6": 6, "ประโยค 5": 5, "ประโยค 4": 4, "ประโยค 3": 3, "ประโยค 1-2": 1, "ไม่มี/ไม่ได้สอบ": 0, "นวกะ": 0 };
 
-        // ระบบเชื่อมต่อ API แทน google.script.run
+        // ระบบเชื่อมต่อ API แทนที่ google.script.run ตัวเก่า
         async function callApi(action, data = {}) {
             data.action = action;
             try {
@@ -239,12 +239,11 @@
                 return await response.json();
             } catch (err) {
                 console.error(err);
-                Swal.fire('การเชื่อมต่อล้มเหลว', 'ไม่สามารถติดต่อฐานข้อมูลได้', 'error');
+                Swal.fire('การเชื่อมต่อล้มเหลว', 'ไม่สามารถติดต่อฐานข้อมูลได้ โปรดตรวจสอบอินเทอร์เน็ต', 'error');
                 return { status: 'error' };
             }
         }
 
-        // ระบบซ่อนกล่องสอนติดตั้งแอป
         window.onload = function() {
             const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
             if (isStandalone) { document.getElementById('installAppPrompt').style.display = 'none'; }
@@ -299,11 +298,11 @@
         async function checkLogin() {
             var user = document.getElementById('loginUser').value.trim(); var pass = document.getElementById('loginPassword').value.trim(); var btn = document.getElementById('btnLogin');
             if(user === "" || pass === "") { Swal.fire({ icon: 'warning', title: 'แจ้งเตือน', text: 'กรุณากรอกชื่อและรหัสผ่าน' }); return; }
-            
             btn.innerHTML = "กำลังตรวจสอบ..."; btn.disabled = true;
             Swal.fire({ title: 'กำลังเข้าระบบ...', didOpen: () => Swal.showLoading(), allowOutsideClick: false });
 
             var result = await callApi('login', { user: user, pass: pass });
+            
             Swal.close();
             btn.innerHTML = "เข้าสู่ระบบ"; btn.disabled = false;
 
@@ -329,8 +328,9 @@
         async function loadAdminLeaves() {
             switchPage('page-admin-leave'); document.getElementById('filterLeaveStatus').value = "รออนุมัติ"; document.getElementById('searchLeave').value = "";
             var tbody = document.getElementById('leaveTableBodyAdmin'); tbody.innerHTML = "<tr><td colspan='2' style='padding: 20px; text-align:center;'>กำลังโหลดข้อมูล...</td></tr>";
+            
             var data = await callApi('getLeaves');
-            if(data && data.status !== 'error') { allLeavesData = data; filterAdminLeaves(); } else { tbody.innerHTML = "<tr><td colspan='2'>เกิดข้อผิดพลาด</td></tr>"; }
+            if(data && data.status !== 'error') { allLeavesData = data; filterAdminLeaves(); } else { tbody.innerHTML = "<tr><td colspan='2' style='padding: 20px; text-align:center;'>เกิดข้อผิดพลาดในการโหลดข้อมูล</td></tr>"; }
         }
         function filterAdminLeaves() {
             var searchTxt = document.getElementById('searchLeave').value.toUpperCase(); var statusFilter = document.getElementById('filterLeaveStatus').value; var tbody = document.getElementById('leaveTableBodyAdmin'); tbody.innerHTML = "";
@@ -348,6 +348,7 @@
         async function loadChantingPage() {
             var today = new Date(); var dd = String(today.getDate()).padStart(2, '0'); var mm = String(today.getMonth() + 1).padStart(2, '0'); var yyyy = today.getFullYear(); document.getElementById('chantingDate').value = yyyy + '-' + mm + '-' + dd;
             switchPage('page-admin-chanting'); var container = document.getElementById('chantingListContainer'); container.innerHTML = "<p align='center' style='color:#666;'>⏳ กำลังโหลดรายชื่อสามเณรปัจจุบัน...</p>";
+            
             var names = await callApi('getActiveNovices');
             if(!names || names.length === 0 || names.status === 'error') { container.innerHTML = "<p align='center' style='color:red;'>ไม่พบรายชื่อสามเณรที่กำลังศึกษา</p>"; return; }
             var html = '<table style="width:100%; border-collapse: collapse;">'; names.forEach(function(n, idx) { html += `<tr style="border-bottom:1px solid #eee;"><td style="padding:12px 5px; font-size:15px; border:none; text-align:left;"><b>${n}</b></td><td style="padding:12px 5px; border:none; text-align:right;"><select id="chant_${idx}" data-name="${n}" class="chant-select"><option value="มา" style="color:green;" selected>✅ มา</option><option value="ขาด" style="color:red;">❌ ขาด</option><option value="ลา" style="color:orange;">📝 ลา</option></select></td></tr>`; }); html += '</table>'; container.innerHTML = html;
@@ -358,8 +359,9 @@
             var records = []; document.querySelectorAll('[id^="chant_"]').forEach(function(sel) { records.push({ name: sel.getAttribute('data-name'), status: sel.value }); }); 
             if(records.length === 0) return; 
             Swal.fire({ title: 'กำลังบันทึกข้อมูลทำวัตร...', allowOutsideClick: false, didOpen:()=>{Swal.showLoading()} }); 
+            
             var res = await callApi('saveChanting', { date: dateVal, session: sessionVal, records: records });
-            if(res && res.status === 'success') { Swal.fire('สำเร็จ', res.message, 'success').then(()=>switchPage('page-menu')); } else { Swal.fire('ผิดพลาด', 'บันทึกไม่สำเร็จ', 'error'); } 
+            if(res && res.status === 'success') { Swal.fire('สำเร็จ', res.message, 'success').then(()=>switchPage('page-menu')); } else { Swal.fire('ผิดพลาด', res ? res.message : 'ระบบขัดข้อง', 'error'); } 
         }
 
         async function loadAdminData() { 
@@ -370,7 +372,12 @@
         function applyFilterAndSort() { var searchTxt = document.getElementById("searchBox").value.toUpperCase(); var sortMode = document.getElementById("sortBox").value; filteredData = allNovicesData.filter(row => row.name.toUpperCase().indexOf(searchTxt) > -1 || row.pali.toUpperCase().indexOf(searchTxt) > -1); if (sortMode === "ageAsc") filteredData.sort((a, b) => parseInt(a.age) - parseInt(b.age)); else if (sortMode === "ageDesc") filteredData.sort((a, b) => parseInt(b.age) - parseInt(a.age)); else if (sortMode === "paliDesc") filteredData.sort((a, b) => (paliWeights[b.pali] || 0) - (paliWeights[a.pali] || 0)); currentPage = 1; renderTable(); }
         function renderTable() { var tbody = document.getElementById('tableBody'); tbody.innerHTML = ""; if(filteredData.length === 0) { tbody.innerHTML = "<tr><td colspan='3' style='padding: 20px; text-align:center;'>ไม่พบรายชื่อในระบบ</td></tr>"; document.getElementById('pageInfo').innerText = "หน้า 1 จาก 1"; document.getElementById('btnPrevPage').disabled = true; document.getElementById('btnNextPage').disabled = true; return; } var totalPages = Math.ceil(filteredData.length / rowsPerPage); if (currentPage > totalPages) currentPage = totalPages; if (currentPage < 1) currentPage = 1; var startIndex = (currentPage - 1) * rowsPerPage; var pageData = filteredData.slice(startIndex, startIndex + rowsPerPage); pageData.forEach(function(row) { var originalIndex = allNovicesData.findIndex(d => d.name === row.name); var statusColor = row.status === "ย้ายวัด" ? "orange" : (row.status === "ลาสิกขา" ? "gray" : "green"); var tr = document.createElement('tr'); tr.innerHTML = `<td style="text-align:left;"><b style="color:#d35400;">${row.name}</b><br><span style="font-size:11px;color:#666;">อายุ ${row.age} ปี | ${row.dhamma} | ${row.pali}</span></td><td style="text-align:center;"><select onchange="changeStatusAdmin('${row.name}', this.value)" style="padding: 5px; font-size: 13px; color: ${statusColor}; font-weight: bold; width: 100%;"><option value="กำลังศึกษา" ${row.status==='กำลังศึกษา'?'selected':''}>กำลังศึกษา</option><option value="ย้ายวัด" ${row.status==='ย้ายวัด'?'selected':''}>ย้ายวัด</option><option value="ลาสิกขา" ${row.status==='ลาสิกขา'?'selected':''}>ลาสิกขา</option></select></td><td style="text-align:center;"><button type="button" class="btn-main" style="padding: 5px; font-size: 13px; margin-top:0; width:auto; display:inline-block;" onclick="viewAdminProfile(${originalIndex})">เปิดดู</button></td>`; tbody.appendChild(tr); }); document.getElementById('pageInfo').innerText = `หน้า ${currentPage} จาก ${totalPages}`; document.getElementById('btnPrevPage').disabled = currentPage === 1; document.getElementById('btnNextPage').disabled = currentPage === totalPages; }
         function changePage(step) { currentPage += step; renderTable(); }
-        async function changeStatusAdmin(name, newStatus) { Swal.fire({ title: 'กำลังอัปเดต...', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } }); var res = await callApi('updateNoviceStatus', { name: name, status: newStatus }); Swal.close(); if(res && res.status==='success') { let user = allNovicesData.find(d => d.name === name); if(user) user.status = newStatus; let total = allNovicesData.length; let active = allNovicesData.filter(d => d.status === "กำลังศึกษา").length; document.getElementById('dashTotal').innerText = total; document.getElementById('dashActive').innerText = active; document.getElementById('dashLeft').innerText = total - active; applyFilterAndSort(); } }
+        async function changeStatusAdmin(name, newStatus) { 
+            Swal.fire({ title: 'กำลังอัปเดต...', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } }); 
+            var res = await callApi('updateNoviceStatus', { name: name, status: newStatus });
+            Swal.close(); 
+            if(res && res.status==='success') { let user = allNovicesData.find(d => d.name === name); if(user) user.status = newStatus; let total = allNovicesData.length; let active = allNovicesData.filter(d => d.status === "กำลังศึกษา").length; document.getElementById('dashTotal').innerText = total; document.getElementById('dashActive').innerText = active; document.getElementById('dashLeft').innerText = total - active; applyFilterAndSort(); } 
+        }
         function viewAdminProfile(index) { var studentData = allNovicesData[index]; fillProfileData(studentData); document.getElementById('profileBackBtn').innerText = "ย้อนกลับ"; document.getElementById('profileBackBtn').onclick = function() { switchPage('page-admin-table'); }; document.getElementById('btnChangePass').style.display = "none"; document.getElementById('btnEditProfile').style.display = "none"; document.getElementById('btnLeaveRequest').style.display = "none"; document.getElementById('userLeaveHistorySection').style.display = "none"; switchPage('page-profile'); }
         function exportToCSV() { if(filteredData.length === 0) { Swal.fire('แจ้งเตือน', 'ไม่มีข้อมูลให้ดาวน์โหลด', 'warning'); return; } var csvContent = "\uFEFFชื่อ-นามสกุล,อายุ,ระดับนักธรรม,เปรียญธรรม,สถานะการศึกษา\n"; filteredData.forEach(row => csvContent += `"${row.name}","${row.age}","${row.dhamma}","${row.pali}","${row.status}"\n`); var link = document.createElement("a"); link.href = URL.createObjectURL(new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })); link.download = "ฐานข้อมูลคณะสามเณร.csv"; link.click(); }
         
@@ -379,9 +386,23 @@
         
         async function processFile(inputId) { var fileControl = document.getElementById(inputId); if (!fileControl || !fileControl.files || fileControl.files.length === 0) return { base64: "", mime: "", name: "" }; return new Promise((resolve, reject) => { const reader = new FileReader(); reader.readAsDataURL(fileControl.files[0]); reader.onload = () => resolve({ base64: reader.result.split(',')[1], mime: fileControl.files[0].type, name: fileControl.files[0].name }); reader.onerror = error => reject(error); }); }
         
-        async function submitEditData() { var btn = document.getElementById('btnSubmitEdit'); var maxFileSize = 3 * 1024 * 1024; var fileInputs = ['editProfileImage', 'editHouseImage', 'editSuthiImage', 'editIdCardImage', 'editEduImage', 'editMedImage']; for (var id of fileInputs) { var fileControl = document.getElementById(id).files[0]; if (fileControl && fileControl.size > maxFileSize) { Swal.fire({ icon: 'warning', title: 'ไฟล์ใหญ่เกินไป', text: 'เอกสารมีขนาดเกิน 3MB' }); return; } } Swal.fire({ title: 'กำลังอัปเดตข้อมูล...', allowOutsideClick: false, showConfirmButton: false, didOpen: () => { Swal.showLoading(); } }); btn.disabled = true; var picData = await processFile('editProfileImage'); var houseData = await processFile('editHouseImage'); var suthiData = await processFile('editSuthiImage'); var idCardData = await processFile('editIdCardImage'); var eduData = await processFile('editEduImage'); var medData = await processFile('editMedImage'); var info = { name: currentLoggedUser, age: document.getElementById('editAge').value, dhammaLevel: document.getElementById('editDhamma').value, paliLevel: document.getElementById('editPali').value, picBase64: picData.base64, picMime: picData.mime, picName: picData.name, houseBase64: houseData.base64, houseMime: houseData.mime, houseName: houseData.name, suthiBase64: suthiData.base64, suthiMime: suthiData.mime, suthiName: suthiData.name, idCardBase64: idCardData.base64, idCardMime: idCardData.mime, idCardName: idCardData.name, eduBase64: eduData.base64, eduMime: eduData.mime, eduName: eduData.name, medBase64: medData.base64, medMime: medData.mime, medName: medData.name }; var res = await callApi('updateProfile', { info: info }); btn.disabled = false; if(res && res.status==='success') { Swal.fire({ icon: 'success', title: 'สำเร็จ', text: res.message, confirmButtonColor: '#28a745' }).then(() => { document.getElementById('editForm').reset(); switchPage('page-login'); }); } else { Swal.fire({ icon: 'error', title: 'ผิดพลาด', text: 'ระบบขัดข้อง โปรดลองอีกครั้ง' }); } }
+        async function submitEditData() { 
+            var btn = document.getElementById('btnSubmitEdit'); var maxFileSize = 3 * 1024 * 1024; var fileInputs = ['editProfileImage', 'editHouseImage', 'editSuthiImage', 'editIdCardImage', 'editEduImage', 'editMedImage']; for (var id of fileInputs) { var fileControl = document.getElementById(id).files[0]; if (fileControl && fileControl.size > maxFileSize) { Swal.fire({ icon: 'warning', title: 'ไฟล์ใหญ่เกินไป', text: 'เอกสารมีขนาดเกิน 3MB' }); return; } } Swal.fire({ title: 'กำลังอัปเดตข้อมูล...', allowOutsideClick: false, showConfirmButton: false, didOpen: () => { Swal.showLoading(); } }); btn.disabled = true; 
+            var picData = await processFile('editProfileImage'); var houseData = await processFile('editHouseImage'); var suthiData = await processFile('editSuthiImage'); var idCardData = await processFile('editIdCardImage'); var eduData = await processFile('editEduImage'); var medData = await processFile('editMedImage'); var info = { name: currentLoggedUser, age: document.getElementById('editAge').value, dhammaLevel: document.getElementById('editDhamma').value, paliLevel: document.getElementById('editPali').value, picBase64: picData.base64, picMime: picData.mime, picName: picData.name, houseBase64: houseData.base64, houseMime: houseData.mime, houseName: houseData.name, suthiBase64: suthiData.base64, suthiMime: suthiData.mime, suthiName: suthiData.name, idCardBase64: idCardData.base64, idCardMime: idCardData.mime, idCardName: idCardData.name, eduBase64: eduData.base64, eduMime: eduData.mime, eduName: eduData.name, medBase64: medData.base64, medMime: medData.mime, medName: medData.name }; 
+            
+            var res = await callApi('updateProfile', { info: info });
+            btn.disabled = false; 
+            if(res && res.status==='success') { Swal.fire({ icon: 'success', title: 'สำเร็จ', text: res.message, confirmButtonColor: '#28a745' }).then(() => { document.getElementById('editForm').reset(); switchPage('page-login'); }); } else { Swal.fire({ icon: 'error', title: 'ผิดพลาด', text: 'ระบบขัดข้อง โปรดลองอีกครั้ง' }); } 
+        }
         
-        async function submitData() { var btn = document.getElementById('submitBtn'); var maxFileSize = 3 * 1024 * 1024; var fileInputs = ['profileImage', 'houseImage', 'suthiImage', 'idCardImage', 'eduImage', 'medImage']; for (var id of fileInputs) { var fileControl = document.getElementById(id).files[0]; if (fileControl && fileControl.size > maxFileSize) { Swal.fire({ icon: 'warning', title: 'ไฟล์ใหญ่เกินไป', text: 'เอกสารมีขนาดเกิน 3MB' }); return; } } Swal.fire({ title: 'กำลังบันทึกข้อมูล...', allowOutsideClick: false, showConfirmButton: false, didOpen: () => { Swal.showLoading(); } }); btn.disabled = true; var picData = await processFile('profileImage'); var houseData = await processFile('houseImage'); var suthiData = await processFile('suthiImage'); var idCardData = await processFile('idCardImage'); var eduData = await processFile('eduImage'); var medData = await processFile('medImage'); var info = { name: document.getElementById('name').value, age: document.getElementById('age').value, dhammaLevel: document.getElementById('dhammaLevel').value, paliLevel: document.getElementById('paliLevel').value, password: document.getElementById('regPassword').value, picBase64: picData.base64, picMime: picData.mime, picName: picData.name, houseBase64: houseData.base64, houseMime: houseData.mime, houseName: houseData.name, suthiBase64: suthiData.base64, suthiMime: suthiData.mime, suthiName: suthiData.name, idCardBase64: idCardData.base64, idCardMime: idCardData.mime, idCardName: idCardData.name, eduBase64: eduData.base64, eduMime: eduData.mime, eduName: eduData.name, medBase64: medData.base64, medMime: medData.mime, medName: medData.name }; var res = await callApi('saveData', { info: info }); btn.disabled = false; if(res && res.status === "duplicate") { Swal.fire({ icon: 'warning', title: 'แจ้งเตือน', text: res.message, confirmButtonColor: '#d35400' }); } else if(res && res.status === 'success') { Swal.fire({ icon: 'success', title: 'สำเร็จ', text: res.message, confirmButtonColor: '#28a745' }).then(() => { document.getElementById('noviceForm').reset(); goBackToPrevious(); }); } else { Swal.fire({ icon: 'error', title: 'ผิดพลาด', text: 'ระบบขัดข้อง' }); } }
+        async function submitData() { 
+            var btn = document.getElementById('submitBtn'); var maxFileSize = 3 * 1024 * 1024; var fileInputs = ['profileImage', 'houseImage', 'suthiImage', 'idCardImage', 'eduImage', 'medImage']; for (var id of fileInputs) { var fileControl = document.getElementById(id).files[0]; if (fileControl && fileControl.size > maxFileSize) { Swal.fire({ icon: 'warning', title: 'ไฟล์ใหญ่เกินไป', text: 'เอกสารมีขนาดเกิน 3MB' }); return; } } Swal.fire({ title: 'กำลังบันทึกข้อมูล...', allowOutsideClick: false, showConfirmButton: false, didOpen: () => { Swal.showLoading(); } }); btn.disabled = true; 
+            var picData = await processFile('profileImage'); var houseData = await processFile('houseImage'); var suthiData = await processFile('suthiImage'); var idCardData = await processFile('idCardImage'); var eduData = await processFile('eduImage'); var medData = await processFile('medImage'); var info = { name: document.getElementById('name').value, age: document.getElementById('age').value, dhammaLevel: document.getElementById('dhammaLevel').value, paliLevel: document.getElementById('paliLevel').value, password: document.getElementById('regPassword').value, picBase64: picData.base64, picMime: picData.mime, picName: picData.name, houseBase64: houseData.base64, houseMime: houseData.mime, houseName: houseData.name, suthiBase64: suthiData.base64, suthiMime: suthiData.mime, suthiName: suthiData.name, idCardBase64: idCardData.base64, idCardMime: idCardData.mime, idCardName: idCardData.name, eduBase64: eduData.base64, eduMime: eduData.mime, eduName: eduData.name, medBase64: medData.base64, medMime: medData.mime, medName: medData.name }; 
+            
+            var res = await callApi('saveData', { info: info });
+            btn.disabled = false; 
+            if(res && res.status === "duplicate") { Swal.fire({ icon: 'warning', title: 'แจ้งเตือน', text: res.message, confirmButtonColor: '#d35400' }); } else if(res && res.status === 'success') { Swal.fire({ icon: 'success', title: 'สำเร็จ', text: res.message, confirmButtonColor: '#28a745' }).then(() => { document.getElementById('noviceForm').reset(); goBackToPrevious(); }); } else { Swal.fire({ icon: 'error', title: 'ผิดพลาด', text: 'ระบบขัดข้อง' }); } 
+        }
     </script>
 </body>
 </html>
